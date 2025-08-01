@@ -12,6 +12,13 @@ extern bool AllowBuy = true;
 extern bool AllowSell = true;
 extern double MinDistancePoints = 50;
 extern int FirstOrderTPPoints = 20;  // TP points for the first order
+extern string Tailing_STOP = "";
+extern bool UseTrailingStop = true;
+extern int TrailingProfitBufferPoints = 30;    
+extern int TrailingStepPoints = 10;            
+extern double MinimumProfitToClose = 1.0;       // Use if not using trailing
+
+
 
 int stepBuy = 0, stepSell = 0;
 double CurrentLotBuy = 0.0, CurrentLotSell = 0.0;
@@ -27,12 +34,28 @@ int OnInit() {
 void OnTick() {
     UpdateDashboard();
 
-    ManageMartingale(OP_BUY, stepBuy, CurrentLotBuy);
-    ManageMartingale(OP_SELL, stepSell, CurrentLotSell);
+    if (AllowBuy) {
+        ManageMartingale(OP_BUY, stepBuy, CurrentLotBuy);
 
-    CloseProfitableLastOrders(OP_BUY, 2);
-    CloseProfitableLastOrders(OP_SELL, 2);
+        if (UseTrailingStop) {
+            CloseProfitableLastOrders(OP_BUY, 2);  // ตั้ง SL แบบ trailing
+        } else {
+            CloseProfitableImmediately(OP_BUY, MinimumProfitToClose); // ปิด order ทันทีถ้ามีกำไร
+        }
+    }
+
+    if (AllowSell) {
+        ManageMartingale(OP_SELL, stepSell, CurrentLotSell);
+
+        if (UseTrailingStop) {
+            CloseProfitableLastOrders(OP_SELL, 2);
+        } else {
+            CloseProfitableImmediately(OP_SELL, MinimumProfitToClose);
+        }
+    }
 }
+
+
 
 double GetSafeLot(double rawLot) {
     double step = MarketInfo(Symbol(), MODE_LOTSTEP);
@@ -181,9 +204,119 @@ void GetExtremePrices(int orderType, double &minPrice, double &maxPrice) {
     }
 }
 
-// Close last n profitable orders if their combined profit > 0
+// CloseProfitableLastOrders()
+// This function sets a Stop Loss (SL) for the last N open orders of a specific type (buy/sell).
+// The SL will only be set if, when triggered, the total estimated profit of all selected orders is positive.
+// The newest orders are prioritized first.
 void CloseProfitableLastOrders(int orderType, int nOrders) {
+    // Define structure to store basic order info
     struct OrderInfo {
+        int ticket;
+        double openPrice;
+        double lot;
+        double swap;
+        double commission;
+    };
+
+    OrderInfo orders[];
+    ArrayResize(orders, 0);
+
+    int collected = 0;
+
+    // Collect the last N orders of the specified type (newest first)
+    for (int i = OrdersTotal() - 1; i >= 0; i--) {
+        if (OrderSelect(i, SELECT_BY_POS, MODE_TRADES)) {
+            if (OrderMagicNumber() == MagicNumber &&
+                OrderType() == orderType) {
+
+                OrderInfo oi;
+                oi.ticket = OrderTicket();
+                oi.openPrice = OrderOpenPrice();
+                oi.lot = OrderLots();
+                oi.swap = OrderSwap();
+                oi.commission = OrderCommission();
+
+                // Insert the new order at the front of the array
+                int oldSize = ArraySize(orders);
+                ArrayResize(orders, oldSize + 1);
+                for (int j = oldSize; j > 0; j--) {
+                    orders[j] = orders[j - 1];
+                }
+                orders[0] = oi;
+
+                collected++;
+                if (collected >= nOrders) break;
+            }
+        }
+    }
+
+    // Skip if not enough orders were collected
+    if (ArraySize(orders) < nOrders) return;
+
+    double price = (orderType == OP_BUY) ? Bid : Ask;
+    double pointValue = MarketInfo(Symbol(), MODE_TICKVALUE);
+
+    // Calculate the proposed SL based on current price and buffer
+    double proposedSL = (orderType == OP_BUY)
+                        ? price - TrailingProfitBufferPoints * Point
+                        : price + TrailingProfitBufferPoints * Point;
+
+    // Estimate total profit if SL is hit for all selected orders
+    double estimatedTotalProfit = 0.0;
+
+    for (int i = 0; i < ArraySize(orders); i++) {
+        double priceDiff = (orderType == OP_BUY)
+                           ? (proposedSL - orders[i].openPrice)
+                           : (orders[i].openPrice - proposedSL);
+        double profit = (priceDiff / Point) * pointValue * orders[i].lot;
+        profit += orders[i].swap + orders[i].commission;
+        estimatedTotalProfit += profit;
+    }
+
+    // Skip setting SL if the simulated profit is negative
+    if (estimatedTotalProfit < 0) {
+        Print("Skip SL: simulated profit if stopped = ", DoubleToString(estimatedTotalProfit, 2));
+        return;
+    }
+
+    // Apply SL to each order if modification is necessary
+    for (int i = 0; i < ArraySize(orders); i++) {
+        if (OrderSelect(orders[i].ticket, SELECT_BY_TICKET)) {
+            double currentSL = OrderStopLoss();
+            double openPrice = OrderOpenPrice();
+
+            bool needToModify = false;
+
+            if (orderType == OP_BUY) {
+                if (currentSL == 0 || proposedSL > currentSL + TrailingStepPoints * Point)
+                    needToModify = true;
+            } else {
+                if (currentSL == 0 || proposedSL < currentSL - TrailingStepPoints * Point)
+                    needToModify = true;
+            }
+
+            // Set the new SL
+            if (needToModify) {
+                bool modified = OrderModify(
+                    OrderTicket(),
+                    openPrice,
+                    proposedSL,
+                    OrderTakeProfit(),
+                    0,
+                    clrGreen
+                );
+
+                if (!modified) {
+                    Print("Failed to set SL for order #", OrderTicket(), " Error: ", GetLastError());
+                }
+            }
+        }
+    }
+}
+
+// Close orders immediately if profit exceeds the minimum profit threshold
+void CloseProfitableImmediately(int orderType, int nOrders) {
+struct OrderInfo {
         int openTime;
         int ticket;
         double profit;
@@ -235,6 +368,7 @@ void CloseProfitableLastOrders(int orderType, int nOrders) {
     }
 }
 
+
 // Return true if external signal allows opening order of given type
 bool IsSignalConfirmed(int orderType) {
     // TODO: Replace this with real signal logic
@@ -242,12 +376,12 @@ bool IsSignalConfirmed(int orderType) {
     double rsi = iRSI(Symbol(), 0, 14, PRICE_CLOSE, 0);
     if (orderType == OP_BUY) {
         // Add your Buy signal condition here
-        //return true;
-        return rsi < 30;
+        return true;
+        //return rsi < 30;
     } else if (orderType == OP_SELL) {
         // Add your Sell signal condition here
-        //return true;
-        return rsi > 70;
+        return true;
+        //return rsi > 70;
     }
     return false;
 }

@@ -20,17 +20,18 @@ RUN wget -O /usr/share/keyrings/winehq-archive.key https://dl.winehq.org/wine-bu
     apt-get install -y --install-recommends winehq-stable libwine:i386 && \
     rm -rf /var/lib/apt/lists/*
 
+# เตรียม Wine prefix
+RUN xvfb-run --auto-servernum --server-args="-screen 0 1024x768x16" wineboot --init && \
+    sleep 5
+
 WORKDIR /root
 
 # ดาวน์โหลด MT4 installer
 RUN mkdir -p /root/mt4 && \
     wget -O /root/mt4/mt4setup.exe "https://download.mql5.com/cdn/web/metaquotes.software.corp/mt4/mt4setup.exe"
 
-# ติดตั้ง MT4 แบบ headless ด้วย xvfb-run
-# Initialize wine first
+# ติดตั้ง MT4 แบบ headless
 RUN xvfb-run --auto-servernum --server-args="-screen 0 1024x768x16" \
-    wineboot --init && \
-    xvfb-run --auto-servernum --server-args="-screen 0 1024x768x16" \
     wine /root/mt4/mt4setup.exe /silent && \
     rm /root/mt4/mt4setup.exe && \
     ls -l "/root/.wine/drive_c/Program Files/MetaTrader 4/" || (echo "❌ MT4 install failed!" && exit 1)

@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-MT4_PATH="C:\\root\\mt4\\terminal.exe"
+MT4_PATH="C:\\root\\mt4\\Meta Trader 4\\Meta Trader 4\\terminal.exe"
 CONFIG_PATH="C:\\root\\config\\start.ini"
 
 echo "[INFO] Starting MetaTrader 4 Portable..."

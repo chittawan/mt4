@@ -27,10 +27,14 @@ RUN mkdir -p /root/mt4 && \
     wget -O /root/mt4/mt4setup.exe "https://download.mql5.com/cdn/web/metaquotes.software.corp/mt4/mt4setup.exe"
 
 # ติดตั้ง MT4 แบบ headless ด้วย xvfb-run
+# Initialize wine first
 RUN xvfb-run --auto-servernum --server-args="-screen 0 1024x768x16" \
+    wineboot --init && \
+    xvfb-run --auto-servernum --server-args="-screen 0 1024x768x16" \
     wine /root/mt4/mt4setup.exe /silent && \
     rm /root/mt4/mt4setup.exe && \
     ls -l "/root/.wine/drive_c/Program Files/MetaTrader 4/" || (echo "❌ MT4 install failed!" && exit 1)
+
 
 # สร้างโฟลเดอร์ Experts และ Logs
 RUN mkdir -p "/root/.wine/drive_c/Program Files/MetaTrader 4/MQL4/Experts" \

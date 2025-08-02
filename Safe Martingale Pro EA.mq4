@@ -36,8 +36,8 @@ int stepBuy = 0, stepSell = 0;
 double CurrentLotBuy = 0.0, CurrentLotSell = 0.0;
 datetime lastBuyBar = 0, lastSellBar = 0;
 datetime lastCheckedBarTime = 0;
-double calLot = 0.0;
-
+double drawPriceToTP_Buy = 0.0;
+double drawPriceToTP_Sell = 0.0;
 //+------------------------------------------------------------------+
 //| Initialization                                                   |
 //+------------------------------------------------------------------+
@@ -55,7 +55,7 @@ void OnTick()
 {
     RebuildStateFromOrders();
     UpdateDashboard();
-
+    DrawDashboard();
     // Open new orders only at the start of a new bar
     if (Time[0] != lastCheckedBarTime)
     {
@@ -68,6 +68,7 @@ void OnTick()
     // Manage existing orders with trailing stop or immediate close
     if (AllowBuy)
     {
+        CalculateBreakEvenPrice(OP_BUY);
         if (UseTrailingStop)
             CloseProfitableLastOrders(OP_BUY, 20);
         else
@@ -76,6 +77,7 @@ void OnTick()
 
     if (AllowSell)
     {
+        CalculateBreakEvenPrice(OP_SELL);
         if (UseTrailingStop)
             CloseProfitableLastOrders(OP_SELL, 20);
         else
@@ -177,6 +179,8 @@ double CalculateNextLotFromFiboRecovery(int orderType, double baseLot, double ta
     // 23.6% Fibonacci retracement level
     double recoveryDistance = priceRange * FiboRetracementLevel;
 
+
+
     // Distance from current price to Fibo TP
     double priceToTP = (orderType == OP_BUY)
                        ? (minPrice + recoveryDistance) - currentPrice
@@ -187,7 +191,6 @@ double CalculateNextLotFromFiboRecovery(int orderType, double baseLot, double ta
     // Calculate lot required to cover current loss
     double requiredProfit = MathAbs(totalLoss) + targetProfitPerOrder;
     double nextLot = requiredProfit / (priceToTP / pointValue);
-    calLot = requiredProfit;
     return GetSafeLot(nextLot);
 }
 
@@ -432,6 +435,97 @@ bool IsSignalConfirmed(int orderType)
     return true;
 }
 
+double CalculateBreakEvenPrice(int orderType)
+{
+    double totalLots = 0;
+    double weightedPriceSum = 0;
+    double extraCosts = 0; // Swap + Commission
+    double tickValue = MarketInfo(Symbol(), MODE_TICKVALUE);
+    double spreadPoints = MarketInfo(Symbol(), MODE_SPREAD); // Spread ใน Points
+
+    for (int i = 0; i < OrdersTotal(); i++)
+    {
+        if (OrderSelect(i, SELECT_BY_POS, MODE_TRADES))
+        {
+            if (OrderMagicNumber() == MagicNumber && OrderType() == orderType)
+            {
+                double lot = OrderLots();
+                double openPrice = OrderOpenPrice();
+
+                weightedPriceSum += openPrice * lot;
+                totalLots += lot;
+
+                extraCosts += (OrderSwap() + OrderCommission());
+            }
+        }
+    }
+
+    if (totalLots == 0) return 0; // ไม่มีออเดอร์
+
+    double averagePrice = weightedPriceSum / totalLots;
+
+    // ✅ ปรับสำหรับ Costs + TargetProfit + Trailing + Spread
+    double adjustmentFromCosts = extraCosts / (totalLots * tickValue / Point);
+    double adjustmentFromTargetProfit = MinimumProfitToClose / (totalLots * tickValue / Point);
+    double adjustmentFromTrailing = (UseTrailingStop) ? TrailingProfitBufferPoints : 0;
+
+    double totalAdjustment = adjustmentFromCosts + adjustmentFromTargetProfit + adjustmentFromTrailing;
+
+    double breakEvenPrice;
+    if (orderType == OP_BUY)
+        breakEvenPrice = averagePrice + (totalAdjustment + spreadPoints) * Point;  // BUY บวก spread
+    else
+        breakEvenPrice = averagePrice - (totalAdjustment + spreadPoints) * Point;  // SELL ลบ spread
+
+    // เก็บค่าไว้สำหรับวาดเส้น
+    if (orderType == OP_BUY)
+        drawPriceToTP_Buy = breakEvenPrice;
+    else
+        drawPriceToTP_Sell = breakEvenPrice;
+
+    return breakEvenPrice;
+}
+
+
+void DrawDashboard()
+{
+    datetime t1 = Time[0];
+    datetime t2 = Time[1]; // เอาแท่งก่อนหน้า ทำให้เส้นสั้นแค่ 1 แท่ง
+
+    if (drawPriceToTP_Buy > 0)
+    {
+        if (ObjectFind(0, "FiboTP_Buy") == -1)
+        {
+            ObjectCreate(0, "FiboTP_Buy", OBJ_TREND, 0, t2, drawPriceToTP_Buy, t1, drawPriceToTP_Buy);
+            ObjectSetInteger(0, "FiboTP_Buy", OBJPROP_COLOR, clrLime);
+            ObjectSetInteger(0, "FiboTP_Buy", OBJPROP_WIDTH, 3);
+            ObjectSetInteger(0, "FiboTP_Buy", OBJPROP_RAY, false);
+        }
+        else
+        {
+            ObjectMove(0, "FiboTP_Buy", 0, t2, drawPriceToTP_Buy);
+            ObjectMove(0, "FiboTP_Buy", 1, t1, drawPriceToTP_Buy);
+        }
+    }
+
+    if (drawPriceToTP_Sell > 0)
+    {
+        if (ObjectFind(0, "FiboTP_Sell") == -1)
+        {
+            ObjectCreate(0, "FiboTP_Sell", OBJ_TREND, 0, t2, drawPriceToTP_Sell, t1, drawPriceToTP_Sell);
+            ObjectSetInteger(0, "FiboTP_Sell", OBJPROP_COLOR, clrRed);
+            ObjectSetInteger(0, "FiboTP_Sell", OBJPROP_WIDTH, 3);
+            ObjectSetInteger(0, "FiboTP_Sell", OBJPROP_RAY, false);
+        }
+        else
+        {
+            ObjectMove(0, "FiboTP_Sell", 0, t2, drawPriceToTP_Sell);
+            ObjectMove(0, "FiboTP_Sell", 1, t1, drawPriceToTP_Sell);
+        }
+    }
+}
+
+
 //+------------------------------------------------------------------+
 //| Update dashboard on chart                                       |
 //+------------------------------------------------------------------+
@@ -453,7 +547,8 @@ void UpdateDashboard()
                  + "Sell Steps: " + IntegerToString(stepSell) + " | Lot: " + DoubleToString(CurrentLotSell, 2) + "\n"
                  + "Open Trades: " + IntegerToString(trades) + "\n"
                  + "Total Profit: " + DoubleToString(totalProfit, 2) + "\n"
-                 + "Required Profit: " + DoubleToString(calLot, 2) + "\n"
+                 + "drawPriceToTP_Buy: " + DoubleToString(drawPriceToTP_Buy, 2) + "\n"
+                 + "xx:" + IntegerToString(ObjectFind("FiboTP_Buy")) + "\n"
                  + "Min Distance: " + IntegerToString(MinDistancePoints) + " pts";
     Comment(msg);
 }

@@ -25,7 +25,7 @@ RUN mkdir -p /root/mt4 && \
 
 # ติดตั้ง MT4 แบบ headless
 RUN xvfb-run --auto-servernum --server-args="-screen 0 1024x768x16" \
-    wine /root/mt4/mt4setup.exe /silent && \
+    wine /root/mt4/mt4setup.exe /auto && \
     rm /root/mt4/mt4setup.exe && \
     ls -l "/root/.wine/drive_c/Program Files/MetaTrader 4/" || (echo "❌ MT4 install failed!" && exit 1)
 

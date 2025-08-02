@@ -46,7 +46,11 @@ WORKDIR /home/trader
 
 VOLUME ["/home/trader/config", "/home/trader/logs"]
 
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+COPY entrypoint.sh /home/trader/entrypoint.sh
+RUN chmod +x /home/trader/entrypoint.sh
 
-ENTRYPOINT ["/entrypoint.sh"]
+ENTRYPOINT ["/home/trader/entrypoint.sh"]
+
+
+
+

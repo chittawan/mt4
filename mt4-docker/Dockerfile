@@ -21,14 +21,6 @@ RUN apt-get install -y --install-recommends winehq-stable xvfb wget unzip cabext
 
 RUN rm -rf /var/lib/apt/lists/*
 
-COPY entrypoint.sh /home/trader/entrypoint.sh
-RUN chmod +x /home/trader/entrypoint.sh
-RUN chown trader:trader /home/trader/entrypoint.sh
-
-RUN useradd -m trader
-USER trader
-WORKDIR /home/trader
-
 # ดาวน์โหลด MT4 installer ด้วย wget แทน COPY
 RUN mkdir -p /home/trader/mt4 && \
     wget -O /home/trader/mt4/mt4setup.exe "https://download.mql5.com/cdn/web/metaquotes.software.corp/mt4/mt4setup.exe"
@@ -48,6 +40,9 @@ COPY experts/Safe_Martingale_Pro_EA.ex4 ./
 WORKDIR /home/trader
 
 VOLUME ["/home/trader/config", "/home/trader/logs"]
+
+COPY entrypoint.sh /home/trader/entrypoint.sh
+RUN chmod +x /home/trader/entrypoint.sh
 
 ENTRYPOINT ["/home/trader/entrypoint.sh"]
 

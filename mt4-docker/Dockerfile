@@ -20,6 +20,8 @@ RUN wget -O /usr/share/keyrings/winehq-archive.key https://dl.winehq.org/wine-bu
     apt-get install -y --install-recommends winehq-stable libwine:i386 && \
     rm -rf /var/lib/apt/lists/*
 
+RUN apt-get install -y --install-recommends winehq-stable wine32 libwine:i386
+
 # เตรียม Wine prefix
 RUN xvfb-run --auto-servernum --server-args="-screen 0 1024x768x16" wineboot --init && \
     sleep 5

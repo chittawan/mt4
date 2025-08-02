@@ -21,6 +21,9 @@ RUN apt-get install -y --install-recommends winehq-stable xvfb wget unzip cabext
 
 RUN rm -rf /var/lib/apt/lists/*
 
+COPY entrypoint.sh /home/trader/entrypoint.sh
+RUN chmod +x /home/trader/entrypoint.sh
+RUN chown trader:trader /home/trader/entrypoint.sh
 
 RUN useradd -m trader
 USER trader
@@ -45,9 +48,6 @@ COPY experts/Safe_Martingale_Pro_EA.ex4 ./
 WORKDIR /home/trader
 
 VOLUME ["/home/trader/config", "/home/trader/logs"]
-
-COPY entrypoint.sh /home/trader/entrypoint.sh
-RUN chmod +x /home/trader/entrypoint.sh
 
 ENTRYPOINT ["/home/trader/entrypoint.sh"]
 

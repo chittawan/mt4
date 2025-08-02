@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-# เริ่ม X Virtual Framebuffer
+echo "[INFO] Starting Xvfb..."
 Xvfb :0 -screen 0 1024x768x16 &
 sleep 3
 
@@ -9,7 +9,7 @@ CONFIG_PATH="C:\\users\\trader\\config\\start.ini"
 MT4_PATH="C:\\Program Files\\MetaTrader 4\\terminal.exe"
 
 echo "[INFO] Starting MetaTrader 4 with EA..."
-wine "$MT4_PATH" /portable /config:$CONFIG_PATH &
+exec wine "$MT4_PATH" /portable /config:$CONFIG_PATH &
 
 # Health check loop: ถ้า MT4 ตาย ให้ exit container
 while true; do

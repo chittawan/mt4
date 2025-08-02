@@ -1,46 +1,35 @@
 FROM scottyhardy/docker-wine:stable
 
-ENV DEBIAN_FRONTEND=noninteractive \
-    WINEDEBUG=-all \
-    DISPLAY=:99 \
-    LANG=en_US.UTF-8
+ENV WINEDEBUG=-all \
+    LANG=en_US.UTF-8 \
+    DISPLAY=:0
 
+# ติดตั้งเครื่องมือพื้นฐาน
+RUN apt-get update && apt-get install -y wget unzip && rm -rf /var/lib/apt/lists/*
+
+# สร้างโฟลเดอร์สำหรับ MT4 และ Experts
 WORKDIR /root
 
-# ติดตั้ง Xvfb และ winetricks
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        xvfb winetricks wget unzip cabextract && \
-    rm -rf /var/lib/apt/lists/*
-
-# เตรียม Wine prefix
-RUN wineboot --init && sleep 5
-
-# ติดตั้ง corefonts เพื่อให้ MT4 UI ปกติ
-RUN xvfb-run --auto-servernum --server-args="-screen 0 1024x768x16" \
-    winetricks -q corefonts
-
-# ดาวน์โหลด MT4 installer
+# ดาวน์โหลด MT4 Portable (ZIP version)
 RUN mkdir -p /root/mt4 && \
-    wget -O /root/mt4/mt4setup.exe "https://download.mql5.com/cdn/web/metaquotes.software.corp/mt4/mt4setup.exe"
+    wget -O /root/mt4/mt4.zip "https://files.metaquotes.net/metaquotes.software.corp/mt4/mt4.zip" && \
+    unzip /root/mt4/mt4.zip -d /root/mt4 && \
+    rm /root/mt4/mt4.zip
 
-# ติดตั้ง MT4 แบบ headless
-RUN xvfb-run --auto-servernum --server-args="-screen 0 1024x768x16" \
-    wine /root/mt4/mt4setup.exe /auto && \
-    rm /root/mt4/mt4setup.exe && \
-    ls -l "/root/.wine/drive_c/Program Files/MetaTrader 4/" || (echo "❌ MT4 install failed!" && exit 1)
+# เตรียมโฟลเดอร์ Experts
+RUN mkdir -p "/root/mt4/MQL4/Experts" && \
+    mkdir -p "/root/mt4/MQL4/Logs"
 
-# คัดลอก EA เข้าโฟลเดอร์ Experts
-WORKDIR "/root/.wine/drive_c/Program Files/MetaTrader 4/MQL4/Experts/"
-COPY experts/Safe_Martingale_Pro_EA.ex4 ./
-
-# กลับไปที่ root
-WORKDIR /root
+# คัดลอก EA เข้า Experts
+COPY experts/Safe_Martingale_Pro_EA.ex4 "/root/mt4/MQL4/Experts/"
 
 # Volume สำหรับ config และ logs
 VOLUME ["/root/config", "/root/logs"]
 
-# คัดลอก entrypoint และให้สิทธิ์รัน
+# คัดลอก entrypoint script
 COPY entrypoint.sh /root/entrypoint.sh
 RUN chmod +x /root/entrypoint.sh
+
+WORKDIR /root/mt4
 
 ENTRYPOINT ["/root/entrypoint.sh"]

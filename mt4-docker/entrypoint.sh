@@ -1,20 +1,16 @@
 #!/bin/bash
 set -e
 
-echo "[INFO] Starting Xvfb..."
-Xvfb :0 -screen 0 1024x768x16 &
-sleep 3
+MT4_PATH="C:\\root\\mt4\\terminal.exe"
+CONFIG_PATH="C:\\root\\config\\start.ini"
 
-CONFIG_PATH="C:\\users\\trader\\config\\start.ini"
-MT4_PATH="C:\\Program Files\\MetaTrader 4\\terminal.exe"
+echo "[INFO] Starting MetaTrader 4 Portable..."
+wine "$MT4_PATH" /portable /config:$CONFIG_PATH &
 
-echo "[INFO] Starting MetaTrader 4 with EA..."
-exec wine "$MT4_PATH" /portable /config:$CONFIG_PATH &
-
-# Health check loop: ถ้า MT4 ตาย ให้ exit container
+# Health check loop
 while true; do
     if ! pgrep -f "terminal.exe" > /dev/null; then
-        echo "[ERROR] MT4 process stopped. Exiting..."
+        echo "[ERROR] MT4 stopped. Exiting..."
         exit 1
     fi
     sleep 10

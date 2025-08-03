@@ -8,3 +8,31 @@ docker run -d \
   -v $(pwd)/config:/home/trader/config \
   -v $(pwd)/logs:/home/trader/.wine/drive_c/Program\ Files/MetaTrader\ 4/MQL4/Logs \
   mt4-ea-live
+
+
+
+docker pull scottyhardy/docker-wine:stable
+
+docker run -it --rm \
+    --name mt4-container \
+    scottyhardy/docker-wine:stable bash
+apt-get update && apt-get install -y xvfb wget
+Xvfb :99 -screen 0 1024x768x16 &
+export DISPLAY=:99
+
+
+cd ~
+mkdir mt4
+wget -O ~/mt4/mt4setup.exe "https://download.mql5.com/cdn/web/metaquotes.software.corp/mt4/mt4setup.exe"
+
+ls -l ~/mt4/mt4setup.exe
+
+xvfb-run --auto-servernum --server-args="-screen 0 1024x768x16" wine ~/mt4/mt4setup.exe /silent
+
+wine /root/mt4setup.exe
+
+wine /root/mt4setup.exe /silent
+
+/root/.wine/drive_c/Program Files/MetaTrader 4/terminal.exe
+
+wine "/root/.wine/drive_c/Program Files/MetaTrader 4/terminal.exe"

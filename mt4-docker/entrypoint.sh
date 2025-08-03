@@ -1,17 +1,8 @@
 #!/bin/bash
 set -e
-
-MT4_PATH="C:\\root\\mt4\\Meta Trader 4\\terminal.exe"
-CONFIG_PATH="C:\\root\\config\\start.ini"
-
-echo "[INFO] Starting MetaTrader 4 Portable..."
-wine "$MT4_PATH" /portable /config:$CONFIG_PATH &
-
-# Health check loop
-while true; do
-    if ! pgrep -f "terminal.exe" > /dev/null; then
-        echo "[ERROR] MT4 stopped. Exiting..."
-        exit 1
-    fi
-    sleep 10
-done
+Xvfb :99 -screen 0 1024x768x16 &
+export DISPLAY=:99
+sleep 3
+echo "[INFO] Starting MetaTrader 4..."
+wine "C:\\Program Files\\MetaTrader 4\\terminal.exe" /portable &
+wait

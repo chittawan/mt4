@@ -1,35 +1,47 @@
 FROM scottyhardy/docker-wine:stable
 
-ENV WINEDEBUG=-all \
+ENV DEBIAN_FRONTEND=noninteractive \
+    DISPLAY=:0 \
+    WINEDEBUG=-all \
     LANG=en_US.UTF-8 \
-    DISPLAY=:0
+    WINEARCH=win32 \
+    WINEPREFIX=/home/wineuser/.wine32
 
-# ติดตั้งเครื่องมือพื้นฐาน
-RUN apt-get update && apt-get install -y wget unzip && rm -rf /var/lib/apt/lists/*
+USER root
 
-# สร้างโฟลเดอร์สำหรับ MT4 และ Experts
-WORKDIR /root
+# ติดตั้ง dependencies
+RUN apt-get update && apt-get install -y \
+    xvfb x11vnc websockify supervisor wget unzip winetricks libvulkan1 \
+    && rm -rf /var/lib/apt/lists/*
 
-# ดาวน์โหลด MT4 Portable (ZIP version)
-RUN mkdir -p /root/mt4 && \
-    wget -O /root/mt4/mt4.zip "https://codewalk.myds.me:5001/d/s/14QN4ofZXk4e06HBxtImrgyd3FooqLKE/webapi/entry.cgi/SYNO.SynologyDrive.Files/Meta%20Trader%204.zip?api=SYNO.SynologyDrive.Files&method=download&version=2&files=%5B%22id%3A899205825556429413%22%5D&force_download=true&json_error=true&download_type=%22download%22&c2_offload=%22allow%22&_dc=1754150950328&sharing_token=%22ibty1NOJfkOKt5ygbYHFEq3YF3VSG8n8rjkN1onDjgq_O8aOcw2orYIK2gRDB4fEwcSD9QWAkYOt9pfn4PZtwiZ52Pgk_RY8Ri43QxSSr69p0xv3CRHro7vWXDxks.59xPyawfg8epTfFuRr60FjHluwBipT2qIygVyQh0k0KmwqqP8dT1geAJajEvOEmBtj8sSnJhhzr0Wj1wNNkN..23PGgP8iXNjUgSKUpIUNr8DYs0edNyWRM5st%22&SynoToken=cWdL2r39D8Xqc" && \
-    unzip /root/mt4/mt4.zip -d /root/mt4 && \
-    rm /root/mt4/mt4.zip
+# สร้างรหัสผ่าน VNC
+RUN mkdir -p /home/wineuser/.vnc && \
+    x11vnc -storepasswd wineuser /home/wineuser/.vnc/passwd && \
+    chown -R wineuser:wineuser /home/wineuser/.vnc
 
-# เตรียมโฟลเดอร์ Experts
-RUN mkdir -p "/root/mt4/MQL4/Experts" && \
-    mkdir -p "/root/mt4/MQL4/Logs"
+USER wineuser
+WORKDIR /home/wineuser
 
-# คัดลอก EA เข้า Experts
-COPY experts/Safe_Martingale_Pro_EA.ex4 "/root/mt4/MQL4/Experts/"
+# สร้าง Wine Prefix 32-bit และติดตั้ง runtime
+RUN xvfb-run winecfg || true \
+    && xvfb-run winetricks --unattended comctl32 vcrun6 corefonts vcrun2005 vcrun2008 vcrun2010
 
-# Volume สำหรับ config และ logs
-VOLUME ["/root/config", "/root/logs"]
+# ดาวน์โหลดและติดตั้ง MT4 แบบ silent
+RUN wget https://download.mql5.com/cdn/web/metaquotes.software.corp/mt4/mt4setup.exe -O mt4setup.exe \
+    && xvfb-run wine mt4setup.exe /silent
 
-# คัดลอก entrypoint script
-COPY entrypoint.sh /root/entrypoint.sh
-RUN chmod +x /root/entrypoint.sh
+# ติดตั้ง noVNC
+RUN mkdir -p /opt/novnc && \
+    wget https://github.com/novnc/noVNC/archive/refs/tags/v1.4.0.zip && \
+    unzip v1.4.0.zip && \
+    mv noVNC-1.4.0/* /opt/novnc && \
+    rm -rf v1.4.0.zip noVNC-1.4.0
 
-WORKDIR /root/mt4
+USER root
 
-ENTRYPOINT ["/root/entrypoint.sh"]
+# คัดลอกไฟล์ Supervisor config
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+
+EXPOSE 8080 5900
+
+CMD ["/usr/bin/supervisord"]

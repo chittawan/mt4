@@ -8,34 +8,30 @@ ENV DEBIAN_FRONTEND=noninteractive \
     WINEPREFIX=/home/wineuser/.wine32 \
     XDG_RUNTIME_DIR=/tmp/runtime-wineuser
 
+# ✅ สร้าง runtime dir และติดตั้ง dependencies
 USER root
-
-# ✅ สร้าง runtime dir
 RUN mkdir -p /tmp/runtime-wineuser && chmod 700 /tmp/runtime-wineuser
 
-# ✅ ติดตั้ง dependencies
 RUN apt-get update && apt-get install -y \
-    xvfb x11vnc websockify supervisor wget unzip winetricks libvulkan1 cabextract \
+    xvfb x11vnc websockify supervisor wget unzip winetricks cabextract \
     && rm -rf /var/lib/apt/lists/*
 
-# ✅ เตรียม Wine Prefix แบบ headless
-RUN Xvfb :99 -screen 0 1024x768x24 & \
-    sleep 3 && \
-    export DISPLAY=:99 && \
-    wineboot --init && \
-    wineserver -w && \
-    winetricks --unattended comctl32 vcrun6 corefonts vcrun2005 vcrun2008 vcrun2010
-
-# ✅ สร้าง user ถ้าไม่มี
+# ✅ สร้าง user wineuser ถ้าไม่มี
 RUN id -u wineuser &>/dev/null || useradd -m -u 1000 -s /bin/bash wineuser
-RUN chown -R wineuser:wineuser /home/wineuser
+RUN mkdir -p /home/wineuser/.wine32 && chown -R wineuser:wineuser /home/wineuser
 
+# ✅ เตรียม Wine Prefix และติดตั้งไลบรารีที่ต้องใช้
 USER wineuser
-WORKDIR /home/wineuser
+RUN Xvfb :99 -screen 0 1024x768x24 & \
+    sleep 5 && \
+    DISPLAY=:99 WINEARCH=win32 WINEPREFIX=/home/wineuser/.wine32 wineboot --init && \
+    wineserver -w && \
+    DISPLAY=:99 WINEPREFIX=/home/wineuser/.wine32 winetricks --unattended comctl32 vcrun6 corefonts vcrun2005 vcrun2008 vcrun2010
 
 # ✅ ดาวน์โหลดและติดตั้ง MT4 แบบ Silent
+WORKDIR /home/wineuser
 RUN wget https://download.mql5.com/cdn/web/metaquotes.software.corp/mt4/mt4setup.exe -O mt4setup.exe \
-    && xvfb-run wine mt4setup.exe /silent || true
+    && xvfb-run --auto-servernum wine mt4setup.exe /silent || true
 
 # ✅ ตั้งรหัสผ่าน VNC
 RUN mkdir -p /home/wineuser/.vnc && \

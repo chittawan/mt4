@@ -12,6 +12,14 @@ docker run -d \
 
 
 docker pull scottyhardy/docker-wine:stable
+docker run -it --rm     --name mt4-container     scottyhardy/docker-wine:stable bash
+
+xvfb wget
+Xvfb :99 -screen 0 1024x768x16 &
+export DISPLAY=:99
+
+echo $DISPLAY
+
 
 docker run -it --rm \
     --name mt4-container \
@@ -21,17 +29,12 @@ Xvfb :99 -screen 0 1024x768x16 &
 export DISPLAY=:99
 
 
-cd ~
-mkdir mt4
-wget -O ~/mt4/mt4setup.exe "https://download.mql5.com/cdn/web/metaquotes.software.corp/mt4/mt4setup.exe"
+wget -O mt4/mt4setup.exe "https://download.mql5.com/cdn/web/metaquotes.software.corp/mt4/mt4setup.exe?utm_source=www.metatrader4.com&utm_campaign=download"
 
-ls -l ~/mt4/mt4setup.exe
-
-xvfb-run --auto-servernum --server-args="-screen 0 1024x768x16" wine ~/mt4/mt4setup.exe /silent
-
-wine /root/mt4setup.exe
+wine /mt4/mt4setup.exe
 
 wine /root/mt4setup.exe /silent
+wine mt4setup.exe /auto
 
 /root/.wine/drive_c/Program Files/MetaTrader 4/terminal.exe
 

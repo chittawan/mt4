@@ -41,13 +41,13 @@ RUN mkdir -p /home/wineuser/.vnc && \
     x11vnc -storepasswd wineuser /home/wineuser/.vnc/passwd
 
 # ✅ ติดตั้ง noVNC
+USER root
 RUN mkdir -p /opt/novnc && \
     wget https://github.com/novnc/noVNC/archive/refs/tags/v1.4.0.zip && \
     unzip v1.4.0.zip && \
     mv noVNC-1.4.0/* /opt/novnc && \
     rm -rf v1.4.0.zip noVNC-1.4.0
 
-USER root
 
 # ✅ คัดลอกไฟล์ Supervisor config
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf

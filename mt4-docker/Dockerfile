@@ -18,7 +18,10 @@ RUN apt-get update && apt-get install -y \
 
 # ✅ สร้าง user wineuser ถ้าไม่มี
 RUN id -u wineuser &>/dev/null || useradd -m -u 1000 -s /bin/bash wineuser
-RUN mkdir -p /home/wineuser/.wine32 && chown -R wineuser:wineuser /home/wineuser
+# ✅ สร้าง user wineuser และ home directory
+RUN useradd -m -u 1000 -s /bin/bash wineuser && \
+    mkdir -p /home/wineuser/.wine32 && \
+    chown -R wineuser:wineuser /home/wineuser
 
 # ✅ เตรียม Wine Prefix และติดตั้งไลบรารีที่ต้องใช้
 USER wineuser

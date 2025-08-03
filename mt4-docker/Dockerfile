@@ -26,8 +26,10 @@ USER wineuser
 WORKDIR /home/wineuser
 
 # สร้าง Wine Prefix และติดตั้ง runtime
-RUN xvfb-run winecfg || true \
+RUN xvfb-run wineboot --init \
+    && xvfb-run wineserver -w \
     && xvfb-run winetricks --unattended comctl32 vcrun6 corefonts vcrun2005 vcrun2008 vcrun2010
+
 
 # ดาวน์โหลดและติดตั้ง MT4
 RUN wget https://download.mql5.com/cdn/web/metaquotes.software.corp/mt4/mt4setup.exe -O mt4setup.exe \

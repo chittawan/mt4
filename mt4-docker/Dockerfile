@@ -8,16 +8,27 @@ ENV DEBIAN_FRONTEND=noninteractive \
     WINEPREFIX=/home/wineuser/.wine32 \
     XDG_RUNTIME_DIR=/tmp/runtime-wineuser
 
+# ✅ ใช้ root ติดตั้งของที่จำเป็น
 USER root
 RUN mkdir -p /tmp/runtime-wineuser && chmod 700 /tmp/runtime-wineuser
 
-# ติดตั้ง dependencies
 RUN apt-get update && apt-get install -y \
     xvfb x11vnc websockify supervisor wget unzip winetricks cabextract \
     && rm -rf /var/lib/apt/lists/*
 
-# ✅ เปลี่ยนกลับไปใช้ user wineuser (มีอยู่แล้ว)
+# ✅ สร้าง user wineuser และ home directory
+RUN useradd -m -u 1000 -s /bin/bash wineuser && \
+    mkdir -p /home/wineuser/.wine32 && \
+    chown -R wineuser:wineuser /home/wineuser
+
+# ✅ ตั้งรหัสผ่าน VNC
+RUN mkdir -p /home/wineuser/.vnc && \
+    x11vnc -storepasswd wineuser /home/wineuser/.vnc/passwd && \
+    chown -R wineuser:wineuser /home/wineuser/.vnc
+
+# ✅ กลับไปใช้ user wineuser
 USER wineuser
+WORKDIR /home/wineuser
 
 # ✅ เตรียม Wine Prefix และติดตั้ง dependencies
 RUN Xvfb :99 -screen 0 1024x768x24 & \
@@ -27,15 +38,10 @@ RUN Xvfb :99 -screen 0 1024x768x24 & \
     DISPLAY=:99 winetricks --unattended comctl32 vcrun6 corefonts vcrun2005 vcrun2008 vcrun2010
 
 # ✅ ดาวน์โหลดและติดตั้ง MT4 แบบ Silent
-WORKDIR /home/wineuser
 RUN wget https://download.mql5.com/cdn/web/metaquotes.software.corp/mt4/mt4setup.exe -O mt4setup.exe \
     && xvfb-run --auto-servernum wine mt4setup.exe /silent || true
 
-# ✅ ตั้งรหัสผ่าน VNC
-RUN mkdir -p /home/wineuser/.vnc && \
-    x11vnc -storepasswd wineuser /home/wineuser/.vnc/passwd
-
-# ✅ กลับเป็น root ติดตั้ง noVNC
+# ✅ ติดตั้ง noVNC (กลับเป็น root)
 USER root
 RUN mkdir -p /opt/novnc && \
     wget https://github.com/novnc/noVNC/archive/refs/tags/v1.4.0.zip && \

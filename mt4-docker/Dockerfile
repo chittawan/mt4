@@ -26,9 +26,12 @@ USER wineuser
 WORKDIR /home/wineuser
 
 # สร้าง Wine Prefix และติดตั้ง runtime
-RUN xvfb-run wineboot --init \
-    && xvfb-run wineserver -w \
-    && xvfb-run winetricks --unattended comctl32 vcrun6 corefonts vcrun2005 vcrun2008 vcrun2010
+RUN apt-get install -y xvfb && \
+    Xvfb :99 -screen 0 1024x768x24 & \
+    export DISPLAY=:99 && \
+    wineboot --init && \
+    wineserver -w && \
+    winetricks --unattended comctl32 vcrun6 corefonts vcrun2005 vcrun2008 vcrun2010
 
 
 # ดาวน์โหลดและติดตั้ง MT4

@@ -11,6 +11,7 @@
 extern int    version                     = 3;
 extern bool   AllowBuy                    = true;
 extern bool   AllowSell                   = true;
+   
 
 extern double StartLot                    = 0.01;
 extern int    MaxSteps                    = 100;
@@ -24,7 +25,7 @@ extern string AutoTailing = "----- AutoTailing -----";
 extern bool   UseTrailingStop             = true;
 extern int    TrailingProfitBufferPoints  = 150;    // Distance from current price for SL
 extern int    TrailingStepPoints          = 50;     // Minimum step to adjust SL
-extern double MinimumProfitToClose        = 1.0;    // Minimum profit for immediate close when not using trailing
+extern double MinimumProfitToClose        = 2.0;    // Minimum profit for immediate close when not using trailing
 
 extern string Fibonancii = "----- Fibo -----";
 extern double FiboRetracementLevel        = 0.236;
@@ -38,6 +39,7 @@ datetime lastBuyBar = 0, lastSellBar = 0;
 datetime lastCheckedBarTime = 0;
 double drawPriceToTP_Buy = 0.0;
 double drawPriceToTP_Sell = 0.0;
+
 //+------------------------------------------------------------------+
 //| Initialization                                                   |
 //+------------------------------------------------------------------+
@@ -56,32 +58,53 @@ void OnTick()
     RebuildStateFromOrders();
     UpdateDashboard();
     DrawDashboard();
+
+    bool isBarChange = false;
     // Open new orders only at the start of a new bar
     if (Time[0] != lastCheckedBarTime)
     {
         lastCheckedBarTime = Time[0];
+        isBarChange = true
 
-        if (AllowBuy)  ManageMartingale(OP_BUY, stepBuy, CurrentLotBuy);
-        if (AllowSell) ManageMartingale(OP_SELL, stepSell, CurrentLotSell);
+        if (AllowBuy) {
+            ManageMartingale(OP_BUY, stepBuy, CurrentLotBuy);
+        }  
+        if (AllowSell) {
+            ManageMartingale(OP_SELL, stepSell, CurrentLotSell);    
+        } 
     }
 
     // Manage existing orders with trailing stop or immediate close
     if (AllowBuy)
     {
         CalculateBreakEvenPrice(OP_BUY);
-        if (UseTrailingStop)
-            CloseProfitableLastOrders(OP_BUY, 20);
-        else
+        if (UseTrailingStop) {
+            if(stepBuy == 1) {
+                if (isBarChange){
+                    CloseProfitableLastOrders(OP_BUY, 20);
+                }
+            } else {
+                CloseProfitableLastOrders(OP_BUY, 20);
+            }
+        } else {
             CloseProfitableImmediately(OP_BUY, MinimumProfitToClose);
+        }
     }
 
     if (AllowSell)
     {
         CalculateBreakEvenPrice(OP_SELL);
-        if (UseTrailingStop)
-            CloseProfitableLastOrders(OP_SELL, 20);
-        else
+        if (UseTrailingStop) {
+            if (stepSell == 1) {
+                if(isBarChange){
+                    CloseProfitableLastOrders(OP_BUY, 20);
+                }
+            } else {
+                CloseProfitableLastOrders(OP_SELL, 20);
+            }
+        } else {
             CloseProfitableImmediately(OP_SELL, MinimumProfitToClose);
+        }
     }
 }
 
@@ -547,8 +570,6 @@ void UpdateDashboard()
                  + "Sell Steps: " + IntegerToString(stepSell) + " | Lot: " + DoubleToString(CurrentLotSell, 2) + "\n"
                  + "Open Trades: " + IntegerToString(trades) + "\n"
                  + "Total Profit: " + DoubleToString(totalProfit, 2) + "\n"
-                 + "drawPriceToTP_Buy: " + DoubleToString(drawPriceToTP_Buy, 2) + "\n"
-                 + "xx:" + IntegerToString(ObjectFind("FiboTP_Buy")) + "\n"
                  + "Min Distance: " + IntegerToString(MinDistancePoints) + " pts";
     Comment(msg);
 }

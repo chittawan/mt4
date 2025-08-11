@@ -42,17 +42,18 @@ Xvfb $DISPLAY -screen $SCREEN_NUM $SCREEN_WHD \
 XVFB_PID=$!
 sleep 2
 
-# Start VNC server (no password)
 if [ -n "$VNC_PASSWORD" ]; then
-    echo "$VNC_PASSWORD" | x11vnc -storepasswd /tmp/vnc.pass
+    # สร้างไฟล์ password แบบ non-interactive
+    x11vnc -storepasswd "$VNC_PASSWORD" /tmp/vnc.pass
     chmod 600 /tmp/vnc.pass
+
+    # รัน VNC server
     x11vnc -bg -rfbauth /tmp/vnc.pass -rfbport 5900 -forever -xkb -o /tmp/x11vnc.log &
     VNC_PID=$!
     sleep 2
 else
     echo "VNC_PASSWORD not set, skipping VNC server startup"
     VNC_PID=0
-fi
 
 
 # Start MT4 terminal

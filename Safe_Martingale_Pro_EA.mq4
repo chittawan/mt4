@@ -64,7 +64,7 @@ void OnTick()
     if (Time[0] != lastCheckedBarTime)
     {
         lastCheckedBarTime = Time[0];
-        isBarChange = true
+        isBarChange = true;
 
         if (AllowBuy) {
             ManageMartingale(OP_BUY, stepBuy, CurrentLotBuy);

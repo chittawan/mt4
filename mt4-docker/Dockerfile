@@ -17,8 +17,9 @@ RUN set -ex; \
         wget \
         unzip \
         xz-utils \
-        xvfb
-RUN set -ex; DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends gnupg 
+        xvfb \
+        gnupg \
+        x11vnc 
 
 RUN set -ex; \
     wget -nc https://dl.winehq.org/wine-builds/winehq.key; \
@@ -81,5 +82,6 @@ USER $USER
 WORKDIR $MT4DIR
 VOLUME /tmp/screenshots/
 
+EXPOSE 5900
 ENTRYPOINT ["/bin/bash"]
 CMD ["/docker/run_mt.sh"]

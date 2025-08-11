@@ -5,6 +5,7 @@ export DISPLAY SCREEN_NUM SCREEN_WHD MT4DIR STARTUP_FILE
 
 XVFB_PID=0
 TERMINAL_PID=0
+VNC_PID=0
 
 term_handler() {
     echo '########################################'
@@ -17,6 +18,11 @@ term_handler() {
 
     /docker/waitonprocess.sh wineserver
 
+    if ps -p $VNC_PID > /dev/null; then
+        kill -SIGTERM $VNC_PID
+        wait $VNC_PID || true
+    fi
+
     if ps -p $XVFB_PID > /dev/null; then
         kill -SIGTERM $XVFB_PID
         wait $XVFB_PID || true
@@ -27,6 +33,7 @@ term_handler() {
 
 trap 'term_handler' SIGTERM
 
+# Start Xvfb
 Xvfb $DISPLAY -screen $SCREEN_NUM $SCREEN_WHD \
     +extension GLX \
     +extension RANDR \
@@ -35,9 +42,25 @@ Xvfb $DISPLAY -screen $SCREEN_NUM $SCREEN_WHD \
 XVFB_PID=$!
 sleep 2
 
+# Start VNC server (no password)
+if [ -n "$VNC_PASSWORD" ]; then
+    echo "$VNC_PASSWORD" | x11vnc -storepasswd /tmp/vnc.pass
+    chmod 600 /tmp/vnc.pass
+    x11vnc -bg -rfbauth /tmp/vnc.pass -rfbport 5900 -forever -xkb -o /tmp/x11vnc.log &
+    VNC_PID=$!
+    sleep 2
+else
+    echo "VNC_PASSWORD not set, skipping VNC server startup"
+    VNC_PID=0
+fi
+
+
+# Start MT4 terminal
 wine "$MT4DIR/terminal.exe" /portable "$STARTUP_FILE" &
 TERMINAL_PID=$!
 
+# Wait processes
 wait $TERMINAL_PID
 /docker/waitonprocess.sh wineserver
+wait $VNC_PID
 wait $XVFB_PID

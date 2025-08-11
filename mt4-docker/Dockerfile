@@ -24,10 +24,9 @@ RUN set -ex; \
     wget -nc https://dl.winehq.org/wine-builds/winehq.key; \
     apt-key add winehq.key; \
     apt-add-repository https://dl.winehq.org/wine-builds/ubuntu/; \
-    DEBIAN_FRONTEND=noninteractive apt-get update -y; \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y --install-recommends \
-        winehq-stable; \
-    rm winehq.key
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --install-recommends winehq-stable; \
+    rm winehq.key \
+    rm -rf /var/lib/apt/lists/*
 
 RUN set -ex; \
     wget https://raw.githubusercontent.com/Winetricks/winetricks/master/src/winetricks; \

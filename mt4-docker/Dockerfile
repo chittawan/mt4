@@ -55,7 +55,8 @@ ENV WINEARCH=win32 \
     SCREEN_NUM=0 \
     SCREEN_WHD=1366x768x24 \
     MT4DIR=$WINEPREFIX/drive_c/mt4 \
-    STARTUP_FILE=startup.ini
+    STARTUP_FILE=startup.ini \
+    VNC_PASSWORD=P@ssw0rd
 
 ADD cache $HOME/.cache
 USER root

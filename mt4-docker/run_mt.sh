@@ -54,7 +54,7 @@ if [ -n "$VNC_PASSWORD" ]; then
 else
     echo "VNC_PASSWORD not set, skipping VNC server startup"
     VNC_PID=0
-
+fi
 
 # Start MT4 terminal
 wine "$MT4DIR/terminal.exe" /portable "$STARTUP_FILE" &

@@ -18,6 +18,7 @@ RUN set -ex; \
         unzip \
         xz-utils \
         xvfb
+RUN set -ex; DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends gnupg 
 
 RUN set -ex; \
     wget -nc https://dl.winehq.org/wine-builds/winehq.key; \

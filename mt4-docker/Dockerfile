@@ -1,5 +1,5 @@
-FROM ubuntu:16.04
-LABEL maintainer="sergey.nevmerzhitsky@gmail.com"
+FROM ubuntu:20.04
+#LABEL maintainer="chittawan.ris@gmail.com"
 
 WORKDIR /tmp/
 
@@ -11,7 +11,6 @@ RUN set -ex; \
         binutils \
         cabextract \
         curl \
-        # To take screenshots of Xvfb display
         imagemagick \
         p7zip \
         software-properties-common \
@@ -40,12 +39,11 @@ RUN chmod a+rx /docker/waitonprocess.sh
 ARG USER=winer
 ARG HOME=/home/$USER
 ARG USER_ID=1000
-# To access the values from children containers.
 ENV USER=$USER \
     HOME=$HOME
 
 RUN set -ex; \
-    groupadd $USER;\
+    groupadd $USER; \
     useradd -u $USER_ID -d $HOME -g $USER -ms /bin/bash $USER
 
 USER $USER
@@ -54,10 +52,10 @@ ENV WINEARCH=win32 \
     WINEPREFIX=$HOME/.wine \
     DISPLAY=:1 \
     SCREEN_NUM=0 \
-    SCREEN_WHD=1366x768x24
-ENV MT4DIR=$WINEPREFIX/drive_c/mt4
+    SCREEN_WHD=1366x768x24 \
+    MT4DIR=$WINEPREFIX/drive_c/mt4 \
+    STARTUP_FILE=startup.ini
 
-# @TODO Install actual versions of Mono and Gecko dynamically
 ADD cache $HOME/.cache
 USER root
 RUN chown $USER:$USER -R $HOME/.cache
@@ -76,12 +74,12 @@ RUN set -e; \
     mkdir -p /tmp/screenshots/; \
     chown winer:winer /tmp/screenshots/
 
+# ✅ ให้ผู้ใช้ mount startup.ini เข้า MT4DIR ได้
+VOLUME ["${MT4DIR}"]
+
 USER $USER
 WORKDIR $MT4DIR
 VOLUME /tmp/screenshots/
 
 ENTRYPOINT ["/bin/bash"]
 CMD ["/docker/run_mt.sh"]
-
-# @TODO Add ability to list logs which content should be redirected to STDOUT with a prefix
-# @TODO Add ability to change TZ of the OS

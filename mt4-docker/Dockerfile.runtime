@@ -1,0 +1,17 @@
+FROM mt4-docker-base AS runtime
+
+WORKDIR /docker
+
+COPY run_mt.sh waitonprocess.sh ./
+RUN chmod +x /docker/*.sh
+
+ENV DISPLAY=:0 \
+    SCREEN_NUM=0 \
+    SCREEN_WHD=1024x768x24 \
+    MT4DIR="/home/winer/.wine/drive_c/mt4" \
+    STARTUP_FILE=""
+
+ENTRYPOINT ["/docker/run_mt.sh"]
+
+
+# docker build -t mt4-runtime -f Dockerfile.runtime .

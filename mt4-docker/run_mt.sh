@@ -8,7 +8,6 @@ TERMINAL_PID=0
 VNC_PID=0
 
 term_handler() {
-    echo '########################################'
     echo 'SIGTERM signal received'
 
     if ps -p $TERMINAL_PID > /dev/null; then
@@ -43,11 +42,8 @@ XVFB_PID=$!
 sleep 2
 
 if [ -n "$VNC_PASSWORD" ]; then
-    # สร้างไฟล์ password แบบ non-interactive
     x11vnc -storepasswd "$VNC_PASSWORD" /tmp/vnc.pass
     chmod 600 /tmp/vnc.pass
-
-    # รัน VNC server
     x11vnc -bg -rfbauth /tmp/vnc.pass -rfbport 5900 -forever -xkb -o /tmp/x11vnc.log &
     VNC_PID=$!
     sleep 2
@@ -56,11 +52,9 @@ else
     VNC_PID=0
 fi
 
-# Start MT4 terminal
 wine "$MT4DIR/terminal.exe" /portable "$STARTUP_FILE" &
 TERMINAL_PID=$!
 
-# Wait processes
 wait $TERMINAL_PID
 /docker/waitonprocess.sh wineserver
 wait $VNC_PID

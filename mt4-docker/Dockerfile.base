@@ -1,0 +1,40 @@
+FROM ubuntu:20.04 AS builder
+
+WORKDIR /tmp/
+
+RUN set -ex; \
+    dpkg --add-architecture i386; \
+    DEBIAN_FRONTEND=noninteractive apt-get update -y; \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        apt-transport-https \
+        binutils \
+        cabextract \
+        curl \
+        imagemagick \
+        p7zip \
+        software-properties-common \
+        wget \
+        unzip \
+        xz-utils \
+        xvfb \
+        gnupg \
+        x11vnc \
+        novnc \
+        websockify \
+        libx11-6 libxext6 libxrender1 libxtst6 libxi6 libxrandr2 libfreetype6 mesa-utils \
+        xserver-xorg-video-dummy; \
+    wget -nc https://dl.winehq.org/wine-builds/winehq.key; \
+    apt-key add winehq.key; \
+    apt-add-repository https://dl.winehq.org/wine-builds/ubuntu/; \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --install-recommends winehq-stable; \
+    rm winehq.key; \
+    rm -rf /var/lib/apt/lists/*
+
+# ติดตั้ง Winetricks
+RUN set -ex; \
+    wget https://raw.githubusercontent.com/Winetricks/winetricks/master/src/winetricks; \
+    chmod +x winetricks; \
+    mv winetricks /usr/local/bin
+
+
+# docker build -t mt4-docker-base -f Dockerfile.base .

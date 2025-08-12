@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 set -e
 
-export DISPLAY SCREEN_NUM SCREEN_WHD MT4DIR STARTUP_FILE
+export DISPLAY SCREEN_NUM SCREEN_WHD MT4DIR STARTUP_FILE VNC_PASSWORD
 
 XVFB_PID=0
 TERMINAL_PID=0
 VNC_PID=0
+NOVNC_PID=0
 
 term_handler() {
     echo 'SIGTERM signal received'
@@ -20,6 +21,11 @@ term_handler() {
     if ps -p $VNC_PID > /dev/null; then
         kill -SIGTERM $VNC_PID
         wait $VNC_PID || true
+    fi
+
+    if ps -p $NOVNC_PID > /dev/null; then
+        kill -SIGTERM $NOVNC_PID
+        wait $NOVNC_PID || true
     fi
 
     if ps -p $XVFB_PID > /dev/null; then
@@ -47,6 +53,10 @@ if [ -n "$VNC_PASSWORD" ]; then
     x11vnc -bg -rfbauth /tmp/vnc.pass -rfbport 5900 -forever -xkb -o /tmp/x11vnc.log &
     VNC_PID=$!
     sleep 2
+
+    websockify --web=/usr/share/novnc/ 6080 localhost:5900 --wrap-mode=ignore &
+    NOVNC_PID=$!
+    echo "noVNC listening on port 6080"
 else
     echo "VNC_PASSWORD not set, skipping VNC server startup"
     VNC_PID=0
@@ -58,4 +68,5 @@ TERMINAL_PID=$!
 wait $TERMINAL_PID
 /docker/waitonprocess.sh wineserver
 wait $VNC_PID
+wait $NOVNC_PID
 wait $XVFB_PID

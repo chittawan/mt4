@@ -9,7 +9,10 @@ ENV DISPLAY=:0 \
     SCREEN_NUM=0 \
     SCREEN_WHD=1024x768x24 \
     MT4DIR="/home/winer/.wine/drive_c/mt4" \
-    STARTUP_FILE=""
+    STARTUP_FILE="startup.ini" \
+    VNC_PASSWORD=P@ssw0rd
+
+EXPOSE 5900 6080
 
 ENTRYPOINT ["/docker/run_mt.sh"]
 

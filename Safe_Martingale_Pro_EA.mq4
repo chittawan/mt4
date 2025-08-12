@@ -327,7 +327,7 @@ void GetExtremePrices(int orderType, double &minPrice, double &maxPrice)
 //+------------------------------------------------------------------+
 //| Close last N profitable orders using trailing stop logic         |
 //+------------------------------------------------------------------+
-void CloseProfitableLastOrders(int orderType, int nOrders)
+void CloseProfitableLastOrdersOriginal(int orderType, int nOrders)
 {
     struct OrderInfo { int ticket; double openPrice; double lot; double swap; double commission; };
     OrderInfo orders[];
@@ -406,6 +406,104 @@ void CloseProfitableLastOrders(int orderType, int nOrders)
         }
     }
 }
+
+//+------------------------------------------------------------------+
+//| Close last N profitable orders using trailing stop logic         |
+//| Improved version with clear comments and simplified logic        |
+//+------------------------------------------------------------------+
+void CloseProfitableLastOrders(int orderType, int nOrders)
+{
+    //--- Structure to store order details
+    struct OrderInfo {
+        int ticket;
+        double openPrice;
+        double lot;
+        double swap;
+        double commission;
+    };
+
+    OrderInfo orders[];
+    ArrayResize(orders, 0);
+
+    //--- Step 1: Collect the last N orders of the given type and MagicNumber
+    for (int pos = OrdersTotal() - 1; pos >= 0; pos--)
+    {
+        if (OrderSelect(pos, SELECT_BY_POS, MODE_TRADES))
+        {
+            if (OrderMagicNumber() == MagicNumber && OrderType() == orderType)
+            {
+                int idx = ArraySize(orders);
+                ArrayResize(orders, idx + 1);
+                orders[idx].ticket     = OrderTicket();
+                orders[idx].openPrice  = OrderOpenPrice();
+                orders[idx].lot        = OrderLots();
+                orders[idx].swap       = OrderSwap();
+                orders[idx].commission = OrderCommission();
+
+                if (ArraySize(orders) >= nOrders) break;
+            }
+        }
+    }
+
+    if (ArraySize(orders) == 0) return; // No orders found
+
+    //--- Step 2: Determine current market price
+    double price       = (orderType == OP_BUY) ? Bid : Ask;
+    double pointValue  = MarketInfo(Symbol(), MODE_TICKVALUE);
+
+    //--- Step 3: Calculate the proposed StopLoss for trailing
+    double proposedSL = (orderType == OP_BUY)
+                        ? price - TrailingProfitBufferPoints * Point
+                        : price + TrailingProfitBufferPoints * Point;
+
+    //--- Step 4: Simulate total profit if SL is hit
+    double estimatedTotalProfit = 0.0;
+    for (int i = 0; i < ArraySize(orders); i++)
+    {
+        double priceDiff = (orderType == OP_BUY)
+                           ? (proposedSL - orders[i].openPrice)
+                           : (orders[i].openPrice - proposedSL);
+
+        double profit = (priceDiff / Point) * pointValue * orders[i].lot;
+        profit += orders[i].swap + orders[i].commission;
+        estimatedTotalProfit += profit;
+    }
+
+    //--- Step 5: If total profit would be negative, do nothing
+    if (estimatedTotalProfit < 0) return;
+
+    //--- Step 6: Apply new StopLoss to each order if needed
+    double minTrailingDistance = TrailingStepPoints * Point;
+
+    for (int i = 0; i < ArraySize(orders); i++)
+    {
+        if (OrderSelect(orders[i].ticket, SELECT_BY_TICKET))
+        {
+            double currentSL = OrderStopLoss();
+            double openPrice = OrderOpenPrice();
+            bool needToModify = false;
+
+            if (orderType == OP_BUY)
+            {
+                if (currentSL == 0 || proposedSL > currentSL + minTrailingDistance)
+                    needToModify = true;
+            }
+            else
+            {
+                if (currentSL == 0 || proposedSL < currentSL - minTrailingDistance)
+                    needToModify = true;
+            }
+
+            if (needToModify)
+            {
+                bool modified = OrderModify(OrderTicket(), openPrice, proposedSL, OrderTakeProfit(), 0, clrGreen);
+                if (!modified)
+                    Print("Failed to modify SL for order ", OrderTicket(), " | Error: ", GetLastError());
+            }
+        }
+    }
+}
+
 
 //+------------------------------------------------------------------+
 //| Close last N orders immediately if total profit > threshold      |

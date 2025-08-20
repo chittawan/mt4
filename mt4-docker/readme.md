@@ -48,4 +48,5 @@ docker run -d --name mt4-headless --rm --cap-add=SYS_PTRACE  -p 5900:5900 -p 608
 Xvfb :0 -screen 0 1024x768x24 & x11vnc -display :0 -bg -nopw -forever -rfbport 5900 & /opt/noVNC/utils/novnc_proxy --vnc localhost:5900 --listen 6080 &  wine terminal /portable startup.ini &
 
 
-/volume1/docker/mq4-volume/mt4-2:/drive_c/mt4
+/drive_c/mt4
+/home/winer/.wine/drive_c/mt4 
